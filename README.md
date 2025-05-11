@@ -18,29 +18,35 @@ UniFind is a web-based platform designed to assist university students, faculty,
 <hr>
 <h2>Features</h2>
 
-<b>• Report Lost/Found Items:</b> Submit details and photos for lost or found items.<br>
-<b>• Search Items:</b> Filter items by category, location, date, or status.<br>
-<b>• Admin Dashboard:</b> Manage reported items and claims (accessible via ```admin.html```).<br>
-<b>• How It Works:</b> Guide on using the platform (```working.html```).<br>
-<b>• About Us:</b> Information about the project and team (```about.html```).<br>
-<b>• Responsive Design:</b> Accessible on desktop and mobile devices.<br>
+<ul>
+<li><b>Report Lost/Found Items:</b> Submit details and photos for lost or found items.</li>
+<li><b>Search Items:</b> Filter items by category, location, date, or status.</li>
+<li><b>Admin Dashboard:</b> Manage reported items and claims (accessible via ```admin.html```).</li>
+<li><b>How It Works:</b> Guide on using the platform (```working.html```).</li>
+<li><b>About Us:</b> Information about the project and team (```about.html```).</li>
+<li><b>Responsive Design:</b> Accessible on desktop and mobile devices.</ul></li>
 <hr>
 
 <h2>Technologies Used</h2>
 <h3>1. Frontend:</h3>
-• HTML: Page structure (home.html, report.html, search.html, etc.)<br>
-• CSS: Styling (styles.css)<br>
-• JavaScript: Interactivity (script.js)<br>
+<ul>
+  <li>HTML: Page structure (home.html, report.html, search.html, etc.)</li>
+  <li>CSS: Styling (styles.css)</li>
+  <li>JavaScript: Interactivity (script.js)</li>
+</ul>
 
 <h3>2. Backend:</h3>
-• Node.js: Server-side runtime (server.js)<br>
-• Express.js: Web framework for API development<br>
+<ul>
+  <li>Node.js: Server-side runtime (server.js)</li>
+  <li>Express.js: Web framework for API development</li>
+</ul>
+
 
 <h3>3. Database:</h3>
-• MySQL: Relational database (Lost_and_Found.sql)
+<ul><li>MySQL: Relational database (Lost_and_Found.sql)</li></ul
 
 <h3>4. Other:</h3>
-• Multer: For handling photo uploads (stored in uploads/)
+<ul><li>Multer: For handling photo uploads (stored in uploads/)</li></ul>
 <hr>
 
 ### Project Structure:
@@ -123,12 +129,15 @@ npx http-server
 <hr>
 
 ### Usage
-• Home Page: Access home.html to view the welcome page with navigation to report or search.<br>
-• Report Page: Use report.html to submit lost or found item details, including photos.<br>
-• Search Page: Navigate to search.html to find items using filters.<br>
-• Admin Dashboard: Access admin.html for managing items and claims (requires authentication, if implemented).<br>
-• How It Works: Visit working.html for usage instructions.<br>
-• About Us: Check about.html for project and team details.<br>
+<ul>
+  <li>Home Page: Access <code>home.html</code> to view the welcome page with navigation to report or search.</li>
+  <li>Report Page: Use <code>report.html</code> to submit lost or found item details, including photos.</li>
+  <li>Search Page: Navigate to <code>search.html</code> to find items using filters.</li>
+  <li>Admin Dashboard: Access <code>admin.html</code> for managing items and claims (requires authentication, if implemented).</li>
+  <li>How It Works: Visit <code>working.html</code> for usage instructions.</li>
+  <li>About Us: Check <code>about.html</code> for project and team details.</li>
+</ul>
+
 <hr>
 
 ### API Endpoints
@@ -148,12 +157,15 @@ The backend (server.js) provides RESTful APIs. Key endpoints include:
 
 ### Database Schema
 The ```Lost_and_Found.sql``` file defines the MySQL schema with tables:<br>
-<b>• User:</b> User details (ID, name, email, etc.).<br>
-<b>• Location:</b> Campus locations (ID, building name, etc.).<br>
-<b>• Category:</b> Item categories (ID, name, etc.).<br>
-<b>• Lost_Item:</b> Lost item details (ID, reported_by, name, description, etc.).<br>
-<b>• Found_Item:</b> Found item details (ID, reported_by, name, description, etc.).<br>
-<b>• Claim:</b> Links lost and found items (ID, lost_item_id, found_item_id, etc.).<br>
+<ul>
+  <li><b>User:</b> User details (ID, name, email, etc.).</li>
+  <li><b>Location:</b> Campus locations (ID, building name, etc.).</li>
+  <li><b>Category:</b> Item categories (ID, name, etc.).</li>
+  <li><b>Lost_Item:</b> Lost item details (ID, reported_by, name, description, etc.).</li>
+  <li><b>Found_Item:</b> Found item details (ID, reported_by, name, description, etc.).</li>
+  <li><b>Claim:</b> Links lost and found items (ID, lost_item_id, found_item_id, etc.).</li>
+</ul>
+
 
 Foreign keys ensure data integrity. The ER diagram ```(University Lost and Found System_Phase_01_ER.mwb)``` visualizes relationships.
 <hr>
