@@ -67,7 +67,6 @@ UniFind/
 │   ├── search.html                 # Search items page
 │   ├── styles.css                  # CSS styles
 │   ├── working.html                # How It Works page
-│   ├── Lost_and_Found.sql          # Duplicate database schema
 │   ├── UniFind_Phase_02_Report.pdf # Project report
 │   ├── University Lost and Found System_Phase_01_ER.mwb  # ER diagram
 │   └── University Lost and Found System_  # Additional documentation
