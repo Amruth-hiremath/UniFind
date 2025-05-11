@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - Lost & Found</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Header with Navigation -->
+  <header>
+    <div class="container">
+      <nav>
+        <a href="home.html" class="logo">
+          <img src="\logo.png" alt="UniFind Logo" style="height: 50px; vertical-align: middle; margin-right: 8px;">
+          UniFind&nbsp;&nbsp;
+        </a>
+        <div class="nav-links" id="navLinks">
+          <a href="home.html"><i class="fas fa-house"></i>&nbsp;Home&nbsp;&nbsp;</a>
+          <a href="report.html"><i class="fas fa-flag"></i>&nbsp;Report Item&nbsp;&nbsp;</a>
+          <a href="search.html"><i class="fas fa-search"></i>&nbsp;Search&nbsp;&nbsp;</a>
+          <a href="about.html"><i class="fas fa-gears"></i>&nbsp;How It Works&nbsp;&nbsp;</a>
+          <a href="main_about.html"><i class="fas fa-user"></i>&nbsp;About Us&nbsp;&nbsp;</a>
+          <a href="admin.html" id="adminLink" style="display: none;"><i class="fas fa-user-shield"></i>&nbsp;Admin&nbsp;&nbsp;</a>
+        </div>
+        <div class="auth-buttons">
+          <!-- Updated by script.js -->
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content: Admin Dashboard -->
+  <section class="admin-section">
+    <div class="container">
+      <h2 class="section-title">Admin Dashboard</h2>
+      <div class="admin-claims">
+        <h3>Pending Claims</h3>
+        <ul id="admin-claims-list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-section">
+          <h3 class="footer-title">UniFind</h3>
+          <p>A university-wide lost and found network designed to help campus community members reconnect with their lost belongings.</p>
+          <div class="social-links">
+            <a href="#" class="social-icon"><i class="fab fa-facebook-f"></i></a>
+            <a href="#" class="social-icon"><i class="fab fa-twitter"></i></a>
+            <a href="#" class="social-icon"><i class="fab fa-instagram"></i></a>
+          </div>
+        </div>
+        <div class="footer-section">
+          <h3 class="footer-title">Quick Links</h3>
+          <ul class="footer-links">
+            <li><a href="home.html">Home</a></li>
+            <li><a href="search.html">Search Items</a></li>
+            <li><a href="report.html">Report Item</a></li>
+            <li><a href="about.html">How It Works</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h3 class="footer-title">Contact Us</h3>
+          <ul class="footer-links">
+            <li><i class="fas fa-map-marker-alt"></i> RV University, Bangalore</li>
+            <li><i class="fas fa-envelope"></i> <a href="mailto:support@unifind.com">support@unifind.com</a></li>
+            <li><i class="fas fa-phone"></i> (123) 456-7890</li>
+          </ul>
+        </div>
+      </div>
+      <div class="copyright">
+        &copy; 2025 UniFind - University Lost & Found Network. All rights reserved.
+      </div>
+    </div>
+  </footer>
+
+  <!-- JavaScript -->
+  <script src="script.js"></script>
+  <script>
+    // Check if user is admin
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user || !user.isAdmin) {
+      alert('Access denied. Admins only.');
+      window.location.href = 'home.html';
+    } else {
+      loadAdminClaims();
+    }
+
+    async function loadAdminClaims() {
+      try {
+        const response = await fetch('http://localhost:5000/api/admin/claims');
+        const claims = await response.json();
+        const claimsList = document.getElementById('admin-claims-list');
+        claimsList.innerHTML = '';
+        claims.forEach(claim => {
+          const li = document.createElement('li');
+          li.classList.add('admin-claim');
+          li.innerHTML = `
+            <h4>Claim for Found Item ID: ${claim.Found_Item_ID}</h4>
+            <p>Claimant: ${claim.First_Name} ${claim.Last_Name} (${claim.Email})</p>
+            <p>Details: ${claim.Verification_Details}</p>
+            <select id="status-${claim.Claim_ID}">
+              <option value="Pending" ${claim.Status === 'Pending' ? 'selected' : ''}>Pending</option>
+              <option value="Approved" ${claim.Status === 'Approved' ? 'selected' : ''}>Approve</option>
+              <option value="Rejected" ${claim.Status === 'Rejected' ? 'selected' : ''}>Reject</option>
+            </select>
+            <button onclick="updateClaimStatus(${claim.Claim_ID})">Update</button>
+          `;
+          claimsList.appendChild(li);
+        });
+      } catch (error) {
+        console.error('Error loading claims:', error);
+      }
+    }
+
+    async function updateClaimStatus(claimId) {
+      const status = document.getElementById(`status-${claimId}`).value;
+      try {
+        const response = await fetch(`http://localhost:5000/api/admin/claims/${claimId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ Status: status })
+        });
+        if (response.ok) {
+          alert('Claim updated successfully!');
+          loadAdminClaims(); // Refresh the list
+        } else {
+          alert('Error updating claim');
+        }
+      } catch (error) {
+        console.error('Error updating claim:', error);
+        alert('Error updating claim');
+      }
+    }
+  </script>
+</body>           
+</html>
