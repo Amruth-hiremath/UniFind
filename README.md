@@ -43,7 +43,7 @@ UniFind is a web-based platform designed to assist university students, faculty,
 
 
 <h3>3. Database:</h3>
-<ul><li>MySQL: Relational database (Lost_and_Found.sql)</li></ul
+<ul><li>MySQL: Relational database (Lost_and_Found.sql)</li></ul>
 
 <h3>4. Other:</h3>
 <ul><li>Multer: For handling photo uploads (stored in uploads/)</li></ul>
