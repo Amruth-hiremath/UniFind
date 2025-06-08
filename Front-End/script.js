@@ -64,7 +64,7 @@ document.addEventListener("DOMContentLoaded", function () {
       input.removeAttribute('required');
     }
   });
-  
+
   document.getElementById('found-location')?.addEventListener('change', function () {
     const other = document.getElementById('found-other-location-container');
     const input = document.getElementById('found-other-location');
@@ -276,39 +276,39 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
 
-    // ====== FEEDBACK FORM SUBMISSION ======
+  // ====== FEEDBACK FORM SUBMISSION ======
   document
-  .getElementById("feedbackForm")
-  ?.addEventListener("submit", async (e) => {
-    e.preventDefault();
+    .getElementById("feedbackForm")
+    ?.addEventListener("submit", async (e) => {
+      e.preventDefault();
 
-    const user = JSON.parse(localStorage.getItem("user"));
-    const feedbackData = {
-      User_ID: user ? user.User_ID : null,
-      Message: document.getElementById("feedback-message").value,
-      Rating: document.querySelector('input[name="rating"]:checked')?.value || null,
-      Feedback_Type: document.getElementById("feedback-type").value || null,
-    };
+      const user = JSON.parse(localStorage.getItem("user"));
+      const feedbackData = {
+        User_ID: user ? user.User_ID : null,
+        Message: document.getElementById("feedback-message").value,
+        Rating: document.querySelector('input[name="rating"]:checked')?.value || null,
+        Feedback_Type: document.getElementById("feedback-type").value || null,
+      };
 
-    try {
-      const response = await fetch("http://localhost:5000/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(feedbackData),
-      });
-      const result = await response.json();
+      try {
+        const response = await fetch("http://localhost:5000/api/feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(feedbackData),
+        });
+        const result = await response.json();
 
-      if (response.ok) {
-        alert("Feedback submitted successfully!");
-        document.getElementById("feedbackForm").reset();
-      } else {
-        alert(`Failed to submit feedback: ${result.error}`);
+        if (response.ok) {
+          alert("Feedback submitted successfully!");
+          document.getElementById("feedbackForm").reset();
+        } else {
+          alert(`Failed to submit feedback: ${result.error}`);
+        }
+      } catch (err) {
+        console.error("Error submitting feedback:", err);
+        alert("Something went wrong. Please try again.");
       }
-    } catch (err) {
-      console.error("Error submitting feedback:", err);
-      alert("Something went wrong. Please try again.");
-    }
-  });
+    });
 
 
   // Load initial items when the search page loads
@@ -360,98 +360,161 @@ document.addEventListener("DOMContentLoaded", function () {
         ),
       ])
         .then(([lostItems, foundItems]) => {
+          // Store in global arrays
           allLostItems = lostItems;
-          allFoundItems = foundItems;
-          displayItemsAsCards(lostItems, foundItems);
+
+          // Server already filtered out claimed items, but we'll double-check here
+          allFoundItems = foundItems.filter(item => item.Status !== 'Claimed');
+
+          displayItemsAsCards(lostItems, allFoundItems);
         })
         .catch((err) => {
           console.error("Error loading initial items:", err);
           document.querySelector(".items-container").innerHTML = `
-        <div class="error">Failed to load items: ${err.message}</div>
-        <button class="retry-btn" onclick="loadInitialItems()">Try Again</button>
-      `;
+      <div class="error">Failed to load items: ${err.message}</div>
+      <button class="retry-btn" onclick="loadInitialItems()">Try Again</button>
+    `;
         });
     }
   }
 
-  // ====== SEARCH FORM SUBMISSION ======
+  function showClaimForm(foundItemId) {
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (!user) {
+      alert("Please log in to claim an item.");
+      openModal("loginModal");
+      return;
+    }
+
+    // Show the claim modal
+    openModal("claimItemModal");
+
+    // Set the hidden fields
+    document.getElementById("claim-item-id").value = foundItemId;
+    document.getElementById("claim-user-id").value = user.User_ID;
+  }
+
+  // Update the claimItemForm submission event handler
   document
-    .querySelector(".search-form")
+    .getElementById("claimItemForm")
     ?.addEventListener("submit", async (e) => {
       e.preventDefault();
 
-      const type = document.getElementById("item-type").value;
-      const location = document.getElementById("location").value;
-      const date = document.getElementById("date").value;
-      const status = document.getElementById("status").value;
-      const keyword = document.getElementById("keyword").value;
-
-      const queryParams = new URLSearchParams({
-        category: type,
-        location,
-        date,
-        status,
-        keyword,
-      });
+      const itemId = document.getElementById("claim-item-id").value;
+      const userId = document.getElementById("claim-user-id").value;
+      const reason = document.getElementById("claim-reason").value;
+      const proof = document.getElementById("claim-proof").value;
 
       try {
-        let lostItems = [];
-        let foundItems = [];
+        const response = await fetch("http://localhost:5000/api/claim", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            User_ID: userId,
+            Found_Item_ID: itemId,
+            Description: reason,
+            Claimant_ID: userId,
+            Verification_Details: proof
+          }),
+        });
 
-        // Show loading state
-        const itemsContainer = document.querySelector(".items-container");
-        if (itemsContainer) {
-          itemsContainer.innerHTML =
-            '<div class="loading">Searching for items...</div>';
+        if (!response.ok) {
+          throw new Error("Failed to submit claim");
         }
 
-        // Fetch items based on status
-        if (!status || status === "Open") {
-          const lostResponse = await fetch(
-            `http://localhost:5000/api/lost-items?${queryParams}`
-          );
-          if (!lostResponse.ok) {
-            throw new Error(
-              `Lost items fetch failed: ${lostResponse.status} ${lostResponse.statusText}`
-            );
-          }
-          lostItems = await lostResponse.json();
-        }
+        const result = await response.json();
 
-        if (!status || status === "Unclaimed") {
-          const foundResponse = await fetch(
-            `http://localhost:5000/api/found-items?${queryParams}`
-          );
-          if (!foundResponse.ok) {
-            throw new Error(
-              `Found items fetch failed: ${foundResponse.status} ${foundResponse.statusText}`
-            );
-          }
-          foundItems = await foundResponse.json();
-        }
-
-        // Store in global arrays
-        allLostItems = lostItems;
-        allFoundItems = foundItems;
-
-        // Display items as cards
-        displayItemsAsCards(lostItems, foundItems);
+        alert(
+          "Claim submitted successfully! You will be contacted once your claim is reviewed."
+        );
+        closeModal("claimItemModal");
+        document.getElementById("claimItemForm").reset();
       } catch (err) {
-        console.error("Error fetching items:", err);
-        const itemsContainer = document.querySelector(".items-container");
-        if (itemsContainer) {
-          itemsContainer.innerHTML = `
-        <div class="error">Failed to fetch items: ${err.message}</div>
-        <button class="retry-btn" onclick="retrySearch()">Try Again</button>
-      `;
-        }
+        console.error("Error:", err);
+        alert("Something went wrong. Please try again later.");
       }
     });
 
+  // ====== SEARCH FORM SUBMISSION ======
+  document.querySelector(".search-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const type = document.getElementById("item-type").value;
+    const location = document.getElementById("location").value;
+    const date = document.getElementById("date").value;
+    const status = document.getElementById("status").value;
+    const keyword = document.getElementById("keyword").value;
+
+    const queryParams = new URLSearchParams({
+      category: type,
+      location,
+      date,
+      status,
+      keyword,
+    });
+
+    try {
+      let lostItems = [];
+      let foundItems = [];
+
+      // Show loading state
+      const itemsContainer = document.querySelector(".items-container");
+      if (itemsContainer) {
+        itemsContainer.innerHTML =
+          '<div class="loading">Searching for items...</div>';
+      }
+
+      // Fetch items based on status
+      if (!status || status === "Open") {
+        const lostResponse = await fetch(
+          `http://localhost:5000/api/lost-items?${queryParams}`
+        );
+        if (!lostResponse.ok) {
+          throw new Error(
+            `Lost items fetch failed: ${lostResponse.status} ${lostResponse.statusText}`
+          );
+        }
+        lostItems = await lostResponse.json();
+      }
+
+      if (!status || status === "Unclaimed") {
+        const foundResponse = await fetch(
+          `http://localhost:5000/api/found-items?${queryParams}`
+        );
+        if (!foundResponse.ok) {
+          throw new Error(
+            `Found items fetch failed: ${foundResponse.status} ${foundResponse.statusText}`
+          );
+        }
+        let fetchedFoundItems = await foundResponse.json();
+
+        // Always filter out claimed items client-side as well
+        foundItems = fetchedFoundItems.filter(item => item.Status !== 'Claimed');
+      }
+
+      // Store in global arrays
+      allLostItems = lostItems;
+      allFoundItems = foundItems;
+
+      // Display items as cards
+      displayItemsAsCards(lostItems, foundItems);
+    } catch (err) {
+      console.error("Error fetching items:", err);
+      const itemsContainer = document.querySelector(".items-container");
+      if (itemsContainer) {
+        itemsContainer.innerHTML = `
+        <div class="error">Failed to fetch items: ${err.message}</div>
+        <button class="retry-btn" onclick="retrySearch()">Try Again</button>
+      `;
+      }
+    }
+  });
 
 
 
-    
+
+
+
   // Function to display items as cards
   function displayItemsAsCards(lostItems, foundItems) {
     const itemsContainer = document.querySelector(".items-container");
@@ -459,6 +522,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Clear the container
     itemsContainer.innerHTML = "";
+
+    // Filter out claimed items from foundItems - ensure this happens in all places
+    const filteredFoundItems = foundItems.filter(item => item.Status !== 'Claimed');
 
     // Combine and sort items by date (most recent first)
     const allItems = [
@@ -468,7 +534,7 @@ document.addEventListener("DOMContentLoaded", function () {
         itemDate: item.Lost_Date,
         formattedDate: formatDate(item.Lost_Date),
       })),
-      ...foundItems.map((item) => ({
+      ...filteredFoundItems.map((item) => ({
         ...item,
         itemType: "found",
         itemDate: item.Found_Date,
@@ -504,7 +570,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Default image path based on category
     let defaultImage = 'https://upload.wikimedia.org/wikipedia/commons/d/d1/Image_not_available.png';
-card.innerHTML = `
+    card.innerHTML = `
   <div class="card-img">
     <img src="${item.Photo_Path || defaultImage}" alt="${item.Item_Name}" 
          onerror="this.src='${defaultImage}'">
@@ -556,7 +622,7 @@ card.innerHTML = `
   }
 
 
-  
+
   // Function to format date
   function formatDate(dateString) {
     if (!dateString) return "Unknown date";
@@ -596,6 +662,7 @@ card.innerHTML = `
 
       // Filter items based on tab
       if (tabType === "all") {
+        // Make sure we're using the filtered version of allFoundItems
         displayItemsAsCards(allLostItems, allFoundItems);
       } else if (tabType === "lost") {
         displayItemsAsCards(allLostItems, []);
@@ -605,15 +672,16 @@ card.innerHTML = `
     });
   });
 
+
   // Function to show item details in a modal
-function showItemDetails(item) {
-  const isLost = item.itemType === "lost";
+  function showItemDetails(item) {
+    const isLost = item.itemType === "lost";
 
-      // Default image path based on category
-      let defaultImage ='https://upload.wikimedia.org/wikipedia/commons/d/d1/Image_not_available.png';
+    // Default image path based on category
+    let defaultImage = 'https://upload.wikimedia.org/wikipedia/commons/d/d1/Image_not_available.png';
 
-  // Create HTML for the modal content
-  let detailsHTML = `
+    // Create HTML for the modal content
+    let detailsHTML = `
     <div class="item-details-grid">
     <div class="item-image">
       <img src="${item.Photo_Path || defaultImage}" 
@@ -644,17 +712,17 @@ function showItemDetails(item) {
     ` : ''}
   `;
 
-  // Create or update the modal
-  let detailsModal = document.getElementById("itemDetailsModal");
-  if (!detailsModal) {
-    detailsModal = document.createElement("div");
-    detailsModal.id = "itemDetailsModal";
-    detailsModal.className = "modal";
-    document.body.appendChild(detailsModal);
-  }
+    // Create or update the modal
+    let detailsModal = document.getElementById("itemDetailsModal");
+    if (!detailsModal) {
+      detailsModal = document.createElement("div");
+      detailsModal.id = "itemDetailsModal";
+      detailsModal.className = "modal";
+      document.body.appendChild(detailsModal);
+    }
 
-  // Set the modal content
-  detailsModal.innerHTML = `
+    // Set the modal content
+    detailsModal.innerHTML = `
     <div class="modal-content">
       <span class="close-modal" onclick="closeModal('itemDetailsModal')">×</span>
       <h2>Item Details</h2><hr>
@@ -662,9 +730,9 @@ function showItemDetails(item) {
     </div>
   `;
 
-  // Show the modal
-  openModal("itemDetailsModal");
-}
+    // Show the modal
+    openModal("itemDetailsModal");
+  }
   // Retry search function (for error state)
   function retrySearch() {
     document.querySelector(".search-form").dispatchEvent(new Event("submit"));
@@ -685,90 +753,72 @@ scrollLinks.forEach((link) => {
   });
 });
 
-// Function to handle claim/contact button click
+// Function to fetch and display contact details in the modal
+async function showContactDetails(lostItemId) {
+  console.log('Fetching contact details for ID:', lostItemId);
+  try {
+    const response = await fetch(`http://localhost:5000/api/lost-items/${lostItemId}/contact-details`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch contact details');
+    }
+    const contactDetails = await response.json();
+    console.log('Received contact details:', contactDetails);
+    const content = `
+      <p><strong>Name:</strong> ${contactDetails.Reporter_Name}</p>
+      <p><strong>Email:</strong> ${contactDetails.Email}</p>
+      <p><strong>Phone:</strong> ${contactDetails.Phone || 'Not provided'}</p>
+    `;
+    const contentElement = document.getElementById('contactDetailsContent');
+    if (contentElement) {
+      contentElement.innerHTML = content;
+    } else {
+      console.error('Element #contactDetailsContent not found');
+    }
+    const modal = document.getElementById('contactDetailsModal');
+    if (modal) {
+      modal.style.display = "block";
+      document.body.style.overflow = "hidden";
+    } else {
+      console.error('Modal #contactDetailsModal not found');
+    }
+  } catch (err) {
+    console.error('Error in showContactDetails:', err);
+    alert('Unable to load contact details at this time.');
+  }
+}
+
+// Function to show the claim form for found items
+function showClaimForm(foundItemId) {
+  const user = JSON.parse(localStorage.getItem("user"));
+  if (!user) {
+    alert("Please log in to claim an item.");
+    openModal("loginModal");
+    return;
+  }
+  openModal("claimItemModal");
+  document.getElementById("claim-item-id").value = foundItemId;
+  document.getElementById("claim-user-id").value = user.User_ID;
+}
+
+// Combined handleItemAction function
 function handleItemAction(itemId, itemType) {
   const user = JSON.parse(localStorage.getItem("user"));
 
   if (!user) {
     alert(
       "Please log in to " +
-      (itemType === "lost" ? "contact the owner" : "claim this item")
+      (itemType === "lost" ? "view contact details" : "claim this item")
     );
     openModal("loginModal");
     return;
   }
 
   if (itemType === "lost") {
-    // Contact functionality for lost items
-    fetch(`http://localhost:5000/api/lost-items/${itemId}/contact`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: user.User_ID,
-        message: "I have information about your lost item.",
-      }),
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to send contact request");
-        }
-        return response.json();
-      })
-      .then((data) => {
-        alert("Contact request sent successfully! The owner will be notified.");
-      })
-      .catch((err) => {
-        console.error("Error sending contact request:", err);
-        alert("An error occurred while sending your request.");
-      });
+    showContactDetails(itemId);
   } else {
-    // Claim functionality for found items
-    openModal("claimItemModal");
-    document.getElementById("claim-item-id").value = itemId;
-    document.getElementById("claim-user-id").value = user.User_ID;
+    showClaimForm(itemId);
   }
 }
-
-document
-  .getElementById("claimItemForm")
-  ?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const itemId = document.getElementById("claim-item-id").value;
-    const userId = document.getElementById("claim-user-id").value;
-    const reason = document.getElementById("claim-reason").value;
-    const proof = document.getElementById("claim-proof").value;
-
-    try {
-      const response = await fetch(
-        `http://localhost:5000/api/found-items/${itemId}/claim`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: userId,
-            reason: reason,
-            proof: proof,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to submit claim");
-      }
-
-      const result = await response.json();
-
-      alert(
-        "Claim submitted successfully! You will be contacted once your claim is reviewed."
-      );
-      closeModal("claimItemModal");
-      document.getElementById("claimItemForm").reset();
-    } catch (err) {
-      console.error("Error:", err);
-      alert("Something went wrong. Please try again later.");
-    }
-  });
 
 // ====== FEATURE TOGGLE ======
 const featureItems = document.querySelectorAll("#features li");
@@ -832,8 +882,15 @@ function loginUser() {
       if (data.user) {
         localStorage.setItem("user", JSON.stringify(data.user));
         alert("Welcome back, " + data.user.First_Name + "!");
+
         closeModal("loginModal");
-        updateUI();
+
+        // 🚀 NEW: Redirect based on user role
+        if (data.user.User_Type.toLowerCase() === "admin") {
+          redirectToAdminDashboard();
+        } else {
+          updateUI(); // Student or other role
+        }
       } else {
         alert(data.error || "Login failed.");
       }
@@ -843,6 +900,11 @@ function loginUser() {
       alert("An error occurred during login.");
     });
 }
+
+function redirectToAdminDashboard() {
+  window.location.href = "admin.html";
+}
+
 
 // ====== LOGOUT FUNCTION ======
 function logoutUser() {
@@ -908,3 +970,4 @@ document.getElementById("scrollToTopBtn")?.addEventListener("click", () => {
     behavior: "smooth",
   });
 });
+

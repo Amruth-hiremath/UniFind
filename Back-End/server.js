@@ -12,6 +12,8 @@ const PORT = 5000; // Changed to match frontend
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.static('Front-End'));
+
 
 // Multer setup for file uploads
 const storage = multer.diskStorage({
@@ -37,6 +39,152 @@ db.connect((err) => {
     return;
   }
   console.log('✅ Connected to MySQL database');
+});
+
+// Middleware to check if user is admin
+function isAdmin(req, res, next) {
+  // Extract user ID from authorization header
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  const userId = authHeader.split(' ')[1];
+
+  // Check if user is admin
+  const query = 'SELECT User_Type FROM User WHERE User_ID = ?';
+  db.query(query, [userId], (err, results) => {
+    if (err) {
+      console.error('Error checking admin status:', err);
+      return res.status(500).json({ message: 'Database error' });
+    }
+
+    if (results.length === 0 || results[0].User_Type.toLowerCase() !== 'admin') {
+      return res.status(403).json({ message: 'Access denied. Admins only.' });
+    }
+
+    next();
+  });
+}
+
+// GET route to fetch all claims for admin
+app.get('/api/claims', isAdmin, (req, res) => {
+  const query = `
+    SELECT 
+      c.Claim_ID,
+      c.Found_Item_ID,
+      c.User_ID,
+      c.Claimant_ID,
+      c.Description,
+      c.Status,
+      c.Verification_Details,
+      c.Claim_Date,
+      CONCAT(u.First_Name, ' ', u.Last_Name) AS Claimant_Name,
+      f.Item_Name,
+      f.Found_Date
+    FROM Claim c
+    JOIN User u ON c.Claimant_ID = u.User_ID
+    JOIN Found_Item f ON c.Found_Item_ID = f.Found_Item_ID
+    ORDER BY c.Claim_Date DESC
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Error fetching claims:', err);
+      return res.status(500).json({ error: 'Database error' });
+    }
+
+    res.json(results);
+  });
+});
+
+// POST route to update a claim status (approve/reject)
+app.post('/api/claims/:id', isAdmin, (req, res) => {
+  const claimId = req.params.id;
+  const { status, verificationDetails } = req.body;
+
+  if (!['Approved', 'Rejected'].includes(status)) {
+    return res.status(400).json({ error: 'Invalid status' });
+  }
+
+  // Start a transaction to ensure data consistency
+  db.beginTransaction((err) => {
+    if (err) {
+      console.error('Error starting transaction:', err);
+      return res.status(500).json({ error: 'Database error' });
+    }
+
+    // Update the claim status
+    const updateClaimQuery = `
+      UPDATE Claim 
+      SET Status = ?, Verification_Details = ?
+      WHERE Claim_ID = ?
+    `;
+
+    db.query(updateClaimQuery, [status, verificationDetails, claimId], (err, result) => {
+      if (err) {
+        return db.rollback(() => {
+          console.error('Error updating claim:', err);
+          res.status(500).json({ error: 'Database error' });
+        });
+      }
+
+      if (result.affectedRows === 0) {
+        return db.rollback(() => {
+          res.status(404).json({ error: 'Claim not found' });
+        });
+      }
+
+      // If approved, update the found item status
+      if (status === 'Approved') {
+        const updateItemQuery = `
+          UPDATE Found_Item 
+          SET Status = 'Claimed', Claimed_By = (
+            SELECT Claimant_ID FROM Claim WHERE Claim_ID = ?
+          )
+          WHERE Found_Item_ID = (
+            SELECT Found_Item_ID FROM Claim WHERE Claim_ID = ?
+          )
+        `;
+
+        db.query(updateItemQuery, [claimId, claimId], (err, updateResult) => {
+          if (err) {
+            return db.rollback(() => {
+              console.error('Error updating found item status:', err);
+              res.status(500).json({ error: 'Failed to update item status' });
+            });
+          }
+
+          // Commit the transaction
+          db.commit((err) => {
+            if (err) {
+              return db.rollback(() => {
+                console.error('Error committing transaction:', err);
+                res.status(500).json({ error: 'Database error' });
+              });
+            }
+
+            res.json({
+              message: `Claim ${claimId} has been ${status.toLowerCase()}`,
+              itemUpdated: status === 'Approved' ? updateResult.affectedRows > 0 : false
+            });
+          });
+        });
+      } else {
+        // If rejected, just commit the claim update
+        db.commit((err) => {
+          if (err) {
+            return db.rollback(() => {
+              console.error('Error committing transaction:', err);
+              res.status(500).json({ error: 'Database error' });
+            });
+          }
+
+          res.json({ message: `Claim ${claimId} has been ${status.toLowerCase()}` });
+        });
+      }
+    });
+  });
 });
 
 // Sample route
@@ -185,52 +333,52 @@ app.get('/api/lost-items', async (req, res) => {
 
 // GET route to search found items
 app.get('/api/found-items', async (req, res) => {
-    const { category, location, date, status, keyword } = req.query;
-    let query = `
+  const { category, location, date, status, keyword } = req.query;
+  let query = `
       SELECT fi.*, c.Category_Name, l.Building_Name, u.First_Name, u.Last_Name
       FROM Found_Item fi
       LEFT JOIN Category c ON fi.Category_ID = c.Category_ID
       LEFT JOIN Location l ON fi.Location_ID = l.Location_ID
       LEFT JOIN User u ON fi.Reported_By = u.User_ID
-      WHERE 1=1
+      WHERE fi.Status != 'Claimed'
     `;
-    const values = [];
-  
-    if (category) {
-      query += ' AND c.Category_Name = ?';
-      values.push(category);
-    }
-    if (location) {
-      query += ' AND l.Building_Name LIKE ?';
-      values.push(`%${location}%`);
-    }
-    if (date) {
-      query += ' AND fi.Found_Date >= ?';
-      values.push(date);
-    }
-    if (status) {
-      // Map 'found' to 'Unclaimed'
-      const dbStatus = status.toLowerCase() === 'found' ? 'Unclaimed' : status;
-      query += ' AND fi.Status = ?';
-      values.push(dbStatus);
-    }
-    if (keyword) {
-      query += ' AND (fi.Item_Name LIKE ? OR fi.Description LIKE ?)';
-      values.push(`%${keyword}%`, `%${keyword}%`);
-    }
-  
-    try {
-      const [results] = await db.promise().query(query, values);
-      const items = results.map(item => ({
-        ...item,
-        Photo_Path: item.Photo_Path ? `http://localhost:5000/${item.Photo_Path}` : null
-      }));
-      res.json(items);
-    } catch (err) {
-      console.error('Error fetching found items:', err);
-      res.status(500).json({ error: 'Failed to fetch found items' });
-    }
-  });
+  const values = [];
+
+  if (category) {
+    query += ' AND c.Category_Name = ?';
+    values.push(category);
+  }
+  if (location) {
+    query += ' AND l.Building_Name LIKE ?';
+    values.push(`%${location}%`);
+  }
+  if (date) {
+    query += ' AND fi.Found_Date >= ?';
+    values.push(date);
+  }
+  if (status) {
+    // Map 'found' to 'Unclaimed'
+    const dbStatus = status.toLowerCase() === 'found' ? 'Unclaimed' : status;
+    query += ' AND fi.Status = ?';
+    values.push(dbStatus);
+  }
+  if (keyword) {
+    query += ' AND (fi.Item_Name LIKE ? OR fi.Description LIKE ?)';
+    values.push(`%${keyword}%`, `%${keyword}%`);
+  }
+
+  try {
+    const [results] = await db.promise().query(query, values);
+    const items = results.map(item => ({
+      ...item,
+      Photo_Path: item.Photo_Path ? `http://localhost:5000/${item.Photo_Path}` : null
+    }));
+    res.json(items);
+  } catch (err) {
+    console.error('Error fetching found items:', err);
+    res.status(500).json({ error: 'Failed to fetch found items' });
+  }
+});
 
 // Routes for categories and locations
 app.get('/api/categories', async (req, res) => {
@@ -251,6 +399,30 @@ app.get('/api/locations', async (req, res) => {
     console.error('Error fetching locations:', err);
     res.status(500).json({ error: 'Failed to fetch locations' });
   }
+});
+
+app.post("/api/claim", (req, res) => {
+  const {
+    User_ID,
+    Found_Item_ID,
+    Description,
+    Claimant_ID,
+    Verification_Details
+  } = req.body;
+
+  const sql = `
+    INSERT INTO Claim (User_ID, Found_Item_ID, Description, Claimant_ID, Verification_Details)
+    VALUES (?, ?, ?, ?, ?)
+  `;
+
+  db.execute(sql, [User_ID, Found_Item_ID, Description, Claimant_ID, Verification_Details], (err, result) => {
+    if (err) {
+      console.error("Error inserting claim:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    res.json({ success: true, claimId: result.insertId });
+  });
 });
 
 // SIGN UP a new user
@@ -314,13 +486,27 @@ app.post('/api/feedback', async (req, res) => {
   }
 });
 
+app.get('/api/lost-items/:id/contact-details', async (req, res) => {
+  const lostItemId = req.params.id;
+  try {
+    const query = `
+      SELECT u.Email, u.Phone, CONCAT(u.First_Name, ' ', u.Last_Name) AS Reporter_Name
+      FROM Lost_Item li
+      JOIN User u ON li.Reported_By = u.User_ID
+      WHERE li.Lost_Item_ID = ?
+    `;
+    const [results] = await db.promise().query(query, [lostItemId]);
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Lost item or reporter not found' });
+    }
+    res.json(results[0]);
+  } catch (err) {
+    console.error('Error fetching contact details:', err);
+    res.status(500).json({ error: 'Failed to fetch contact details' });
+  }
+});
+
 // Start the server
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
-
-
-
-
-
-

@@ -95,20 +95,54 @@
       </div>
 
       <!-- Display lost items -->
-    <!-- Replace the existing lost/found items lists with this -->
-<div class="search-results">
-  <h3>Search Results</h3>
-  <div class="tabs">
-    <button class="tab-btn active" data-tab="all">All Items</button>
-    <button class="tab-btn" data-tab="lost">Lost Items</button>
-    <button class="tab-btn" data-tab="found">Found Items</button>
-  </div>
-  
-  <div class="items-container">
-    <!-- Cards will be inserted here by JavaScript -->
-  </div>
-</div>
+      <!-- Replace the existing lost/found items lists with this -->
+      <div class="search-results">
+        <h3>Search Results</h3>
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="all">All Items</button>
+          <button class="tab-btn" data-tab="lost">Lost Items</button>
+          <button class="tab-btn" data-tab="found">Found Items</button>
+        </div>
+
+        <div class="items-container">
+          <!-- Cards will be inserted here by JavaScript -->
+        </div>
+      </div>
   </section>
+  <div id="claimItemModal" class="modal">
+    <div class="modal-content">
+      <span class="close-modal" onclick="closeModal('claimItemModal')">×</span>
+      <h2>Claim This Item</h2>
+      <form id="claimItemForm">
+        <input type="hidden" id="claim-item-id">
+        <input type="hidden" id="claim-user-id">
+
+        <div class="form-group">
+          <label for="claim-reason">Why do you think this item is yours?</label>
+          <textarea id="claim-reason" rows="3" required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="claim-proof">Please provide details to verify your claim</label>
+          <textarea id="claim-proof" rows="3" required></textarea>
+          <small>For example: Distinctive marks, serial number, contents, etc.</small>
+        </div>
+
+        <button type="submit" class="btn primary-btn">Submit Claim</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="contactDetailsModal" class="modal">
+    <div class="modal-content">
+      <span class="close-modal" onclick="closeModal('contactDetailsModal')">×</span>
+      <h2>Contact Details<br></h2>
+      <hr><br>
+      <div id="contactDetailsContent">
+        <!-- Contact details will be inserted here -->
+      </div>
+    </div>
+  </div>
 
   <!-- Footer -->
   <footer>
@@ -125,7 +159,7 @@
             <a href="#" class="social-icon"><i class="fab fa-x-twitter"></i></a>
             <a href="#" class="social-icon"><i class="fab fa-facebook-f"></i></a>
             <a href="#" class="social-icon"><i class="fab fa-instagram"></i></a>
-        </div>
+          </div>
         </div>
         <div class="footer-section">
           <h3 class="footer-title">Quick Links</h3>
