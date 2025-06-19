@@ -1,4 +1,4 @@
-<h2>UniFind: University Lost and Found Network</h2>
+<h1>UniFind: University Lost and Found Network</h1>
 
 UniFind is a web-based platform designed to assist university students, faculty, and staff in reporting and recovering lost and found items on campus. It provides an intuitive interface for reporting lost or found items, searching for items, and accessing information about the platform.
 
@@ -21,9 +21,9 @@ UniFind is a web-based platform designed to assist university students, faculty,
 <ul>
 <li><b>Report Lost/Found Items:</b> Submit details and photos for lost or found items.</li>
 <li><b>Search Items:</b> Filter items by category, location, date, or status.</li>
-<li><b>Admin Dashboard:</b> Manage reported items and claims (accessible via ```admin.html```).</li>
-<li><b>How It Works:</b> Guide on using the platform (```working.html```).</li>
-<li><b>About Us:</b> Information about the project and team (```about.html```).</li>
+<li><b>Admin Dashboard:</b> Manage reported items and claims (accessible via admin.html).</li>
+<li><b>How It Works:</b> Guide on using the platform (working.html).</li>
+<li><b>About Us:</b> Information about the project and team (about.html).</li>
 <li><b>Responsive Design:</b> Accessible on desktop and mobile devices.</ul></li>
 <hr>
 
